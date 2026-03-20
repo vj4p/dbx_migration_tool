@@ -1,0 +1,52 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SecretsManagerRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:cder/dbx-migration-tool/*",
+        "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:cder-secrets/*"
+      ]
+    },
+    {
+      "Sid": "EFSAccess",
+      "Effect": "Allow",
+      "Action": [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientWrite",
+        "elasticfilesystem:DescribeMountTargets"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:elasticfilesystem:us-gov-west-1:ACCOUNT_ID:file-system/fs-INPUT_EFS_ID",
+        "arn:aws-us-gov:elasticfilesystem:us-gov-west-1:ACCOUNT_ID:file-system/fs-OUTPUT_EFS_ID"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": "arn:aws-us-gov:logs:us-gov-west-1:ACCOUNT_ID:log-group:/ecs/dbx-migration-tool:*"
+    },
+    {
+      "Sid": "ECRPull",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

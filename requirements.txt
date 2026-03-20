@@ -1,0 +1,68 @@
+# =============================================================================
+# Informatica to Databricks ETL Migration Tool — Python Dependencies
+# Python 3.10+  |  Tested on Databricks Runtime 14.3 LTS
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Core XML & Data Processing
+# ---------------------------------------------------------------------------
+lxml>=4.9.3,<5.0.0           # High-performance XML parser for PowerMart exports
+xmltodict>=0.13.0             # XML-to-dict convenience wrapper
+
+# ---------------------------------------------------------------------------
+# PySpark (provided by Databricks Runtime; pinned for local unit testing)
+# ---------------------------------------------------------------------------
+pyspark>=3.5.0,<3.6.0        # Must match DBR 14.3 Spark version
+
+# ---------------------------------------------------------------------------
+# Delta Lake (local testing / standalone mode)
+# ---------------------------------------------------------------------------
+delta-spark>=3.1.0,<3.2.0    # Matches Delta Lake version in DBR 14.3
+
+# ---------------------------------------------------------------------------
+# Databricks SDK & CLI Integration
+# ---------------------------------------------------------------------------
+databricks-sdk>=0.20.0        # Official Databricks SDK for Jobs/Secrets API
+databricks-cli>=0.18.0        # CLI helpers for workspace/bundle operations
+
+# ---------------------------------------------------------------------------
+# Code Generation & Templating
+# ---------------------------------------------------------------------------
+Jinja2>=3.1.2,<4.0.0          # Template engine for notebook code generation
+black>=24.1.0                 # Code formatter for generated PySpark notebooks
+isort>=5.13.0                 # Import sorter for generated code
+
+# ---------------------------------------------------------------------------
+# Type Checking & Validation
+# ---------------------------------------------------------------------------
+pydantic>=2.5.0,<3.0.0        # Data validation / transformation schema models
+typing-extensions>=4.9.0      # Backported typing utilities
+
+# ---------------------------------------------------------------------------
+# Configuration & Secrets
+# ---------------------------------------------------------------------------
+python-dotenv>=1.0.0           # Local .env support for dev/test
+PyYAML>=6.0.1                  # YAML config parsing (DAB configs)
+toml>=0.10.2                   # TOML config support
+
+# ---------------------------------------------------------------------------
+# Logging & Observability
+# ---------------------------------------------------------------------------
+structlog>=24.1.0              # Structured logging for migration jobs
+rich>=13.7.0                   # Rich terminal output for CLI tools
+
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
+pytest>=8.0.0                  # Test framework
+pytest-cov>=4.1.0              # Coverage reporting
+pytest-mock>=3.12.0            # Mock/patch support
+pytest-xdist>=3.5.0            # Parallel test execution
+freezegun>=1.4.0               # Date/time mocking for load-date tests
+
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
+click>=8.1.7,<9.0.0            # CLI interface for migration runner
+tabulate>=0.9.0                # Tabular output for mapping reports
+colorama>=0.4.6                # Cross-platform terminal color support

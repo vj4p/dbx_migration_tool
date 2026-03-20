@@ -1,0 +1,107 @@
+{
+  "family": "dbx-migration-tool",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws-us-gov:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn":      "arn:aws-us-gov:iam::ACCOUNT_ID:role/dbx-migration-tool-task-role",
+  "containerDefinitions": [
+    {
+      "name": "dbx-migration-tool",
+      "image": "ACCOUNT_ID.dkr.ecr.us-gov-west-1.amazonaws.com/dbx-migration-tool:latest",
+      "essential": true,
+      "readonlyRootFilesystem": true,
+      "environment": [
+        { "name": "AWS_DEFAULT_REGION",  "value": "us-gov-west-1" },
+        { "name": "DBX_CATALOG",         "value": "cder_prod" },
+        { "name": "DBX_SECRET_SCOPE",    "value": "cder-secrets" },
+        { "name": "LOG_LEVEL",           "value": "INFO" },
+        { "name": "PYTHONUNBUFFERED",    "value": "1" }
+      ],
+      "secrets": [
+        {
+          "name":      "DATABRICKS_HOST",
+          "valueFrom": "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:cder/dbx-migration-tool/databricks-host"
+        },
+        {
+          "name":      "DATABRICKS_TOKEN",
+          "valueFrom": "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:cder/dbx-migration-tool/databricks-token"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume":  "efs-input",
+          "containerPath": "/app/input",
+          "readOnly":      true
+        },
+        {
+          "sourceVolume":  "efs-output",
+          "containerPath": "/app/output",
+          "readOnly":      false
+        },
+        {
+          "sourceVolume":  "tmp",
+          "containerPath": "/tmp",
+          "readOnly":      false
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/dbx-migration-tool",
+          "awslogs-region":        "us-gov-west-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group":  "true"
+        }
+      },
+      "healthCheck": {
+        "command":     ["CMD", "python", "-c", "from src.migration.parser import InformaticaXMLParser; print('ok')"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 10
+      },
+      "portMappings": [],
+      "linuxParameters": {
+        "capabilities": {
+          "drop": ["ALL"]
+        },
+        "initProcessEnabled": true
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "efs-input",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-INPUT_EFS_ID",
+        "rootDirectory": "/migration/input",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "iam": "ENABLED"
+        }
+      }
+    },
+    {
+      "name": "efs-output",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-OUTPUT_EFS_ID",
+        "rootDirectory": "/migration/output",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "iam": "ENABLED"
+        }
+      }
+    },
+    {
+      "name": "tmp",
+      "host": {}
+    }
+  ],
+  "tags": [
+    { "key": "Project",     "value": "dbx-migration-tool" },
+    { "key": "Environment", "value": "prod" },
+    { "key": "Compliance",  "value": "FedRAMP-High" }
+  ]
+}

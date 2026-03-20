@@ -1,0 +1,161 @@
+bundle:
+  name: dbx_migration_tool
+
+variables:
+  catalog:
+    description: Unity Catalog catalog name
+    default: cder_prod
+  bronze_schema:
+    description: Bronze layer schema name
+    default: bronze
+  silver_schema:
+    description: Silver layer schema name
+    default: silver
+  gold_schema:
+    description: Gold layer schema name
+    default: gold
+  secret_scope:
+    description: Databricks secret scope for credentials
+    default: cder-secrets
+  environment:
+    description: Deployment environment (dev/staging/prod)
+    default: dev
+  node_type:
+    description: Default cluster node type
+    default: Standard_DS3_v2
+  spark_version:
+    description: Databricks Runtime version
+    default: "14.3.x-scala2.12"
+
+workspace:
+  host: ${DATABRICKS_HOST}
+  root_path: /Workspace/Repos/${var.environment}/dbx_migration_tool
+
+artifacts:
+  migration_wheel:
+    type: whl
+    path: .
+    build: pip wheel . --no-deps -w dist/
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      environment: dev
+      catalog: cder_prod
+    workspace:
+      host: ${DATABRICKS_HOST}
+      root_path: /Workspace/Repos/dev/dbx_migration_tool
+
+  staging:
+    mode: production
+    variables:
+      environment: staging
+      catalog: cder_prod
+    workspace:
+      host: ${DATABRICKS_HOST}
+      root_path: /Workspace/Repos/staging/dbx_migration_tool
+
+  prod:
+    mode: production
+    variables:
+      environment: prod
+      catalog: cder_prod
+    workspace:
+      host: ${DATABRICKS_HOST}
+      root_path: /Workspace/Repos/prod/dbx_migration_tool
+
+resources:
+  jobs:
+    migration_orchestrator:
+      name: "migration_orchestrator_${var.environment}"
+      description: >
+        Orchestrates the full Informatica-to-Databricks migration pipeline
+        across Bronze, Silver, and Gold medallion layers.
+      tags:
+        project: dbx_migration_tool
+        environment: ${var.environment}
+        team: data-engineering
+
+      job_clusters:
+        - job_cluster_key: migration_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.node_type}
+            num_workers: 4
+            spark_conf:
+              spark.databricks.delta.preview.enabled: "true"
+              spark.databricks.delta.schema.autoMerge.enabled: "true"
+              spark.sql.catalog.spark_catalog: "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+              spark.databricks.unityCatalog.enabled: "true"
+            spark_env_vars:
+              CATALOG: ${var.catalog}
+              BRONZE_SCHEMA: ${var.bronze_schema}
+              SILVER_SCHEMA: ${var.silver_schema}
+              GOLD_SCHEMA: ${var.gold_schema}
+              SECRET_SCOPE: ${var.secret_scope}
+            custom_tags:
+              project: dbx_migration_tool
+              environment: ${var.environment}
+
+      tasks:
+        - task_key: task_bronze_ingest
+          job_cluster_key: migration_cluster
+          notebook_task:
+            notebook_path: ./notebooks/bronze/nb_bronze_template_ingest
+            base_parameters:
+              p_catalog: ${var.catalog}
+              p_schema: ${var.bronze_schema}
+              p_load_date: "{{job.start_time.iso_date}}"
+              p_mapping_name: "default"
+          timeout_seconds: 3600
+          retry_on_timeout: false
+          max_retries: 2
+          min_retry_interval_millis: 60000
+
+        - task_key: task_silver_transform
+          depends_on:
+            - task_key: task_bronze_ingest
+          job_cluster_key: migration_cluster
+          notebook_task:
+            notebook_path: ./notebooks/silver/nb_silver_template_transform
+            base_parameters:
+              p_catalog: ${var.catalog}
+              p_bronze_schema: ${var.bronze_schema}
+              p_silver_schema: ${var.silver_schema}
+              p_load_date: "{{job.start_time.iso_date}}"
+              p_mapping_name: "default"
+          timeout_seconds: 3600
+          retry_on_timeout: false
+          max_retries: 2
+          min_retry_interval_millis: 60000
+
+        - task_key: task_gold_merge
+          depends_on:
+            - task_key: task_silver_transform
+          job_cluster_key: migration_cluster
+          notebook_task:
+            notebook_path: ./notebooks/gold/nb_gold_template_merge
+            base_parameters:
+              p_catalog: ${var.catalog}
+              p_silver_schema: ${var.silver_schema}
+              p_gold_schema: ${var.gold_schema}
+              p_load_date: "{{job.start_time.iso_date}}"
+              p_mapping_name: "default"
+          timeout_seconds: 3600
+          retry_on_timeout: false
+          max_retries: 2
+          min_retry_interval_millis: 60000
+
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"
+        timezone_id: "America/New_York"
+        pause_status: PAUSED
+
+      email_notifications:
+        on_failure:
+          - data-engineering@agency.gov
+        on_success: []
+
+      max_concurrent_runs: 1

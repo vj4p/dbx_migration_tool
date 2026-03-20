@@ -1,0 +1,38 @@
+version: "3.9"
+
+# Local development / smoke-test compose.
+# DO NOT use this compose file for production — use the ECS task definition.
+
+services:
+  dbx-migration-tool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: dbx_migration_tool:local
+    container_name: dbx_migration_tool
+    environment:
+      # --- AWS (local dev only — use IAM role / ECS task role in prod) ---
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-gov-west-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+
+      # --- Databricks (override via env or AWS Secrets Manager in ECS) ---
+      DATABRICKS_HOST: ${DATABRICKS_HOST:-}
+      DATABRICKS_TOKEN: ${DATABRICKS_TOKEN:-}
+
+      # --- App config ---
+      DBX_CATALOG: ${DBX_CATALOG:-cder_prod}
+      DBX_SECRET_SCOPE: ${DBX_SECRET_SCOPE:-cder-secrets}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+    volumes:
+      # Mount local XML exports for conversion during development
+      - ./sample_xml:/app/input:ro
+      - ./output:/app/output
+
+    # Override default CMD for interactive use
+    command: ["--help"]
+
+    restart: "no"

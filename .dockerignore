@@ -1,0 +1,48 @@
+# Version control
+.git/
+.gitignore
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test & coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.xml
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Secrets — never bake into image
+.env
+*.env
+secrets/
+*.pem
+*.key
+
+# Databricks CLI cache
+.databricks/
+
+# Docker compose override files
+docker-compose.override.yml
