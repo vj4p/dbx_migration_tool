@@ -57,16 +57,16 @@ def _write_xml(xml_content: str) -> str:
 
 def _minimal_xml(folder_content: str = "") -> str:
     """Wrap folder_content in a minimal PowerMart/REPOSITORY envelope."""
-    return textwrap.dedent(f"""\
-        <?xml version="1.0" encoding="UTF-8"?>
-        <POWERMART>
-          <REPOSITORY NAME="TEST_REPO" VERSION="182" CODEPAGE="UTF-8">
-            <FOLDER NAME="TEST_FOLDER" OWNER="admin" DESCRIPTION="Test folder">
-              {folder_content}
-            </FOLDER>
-          </REPOSITORY>
-        </POWERMART>
-    """)
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<POWERMART>\n"
+        '  <REPOSITORY NAME="TEST_REPO" VERSION="182" CODEPAGE="UTF-8">\n'
+        '    <FOLDER NAME="TEST_FOLDER" OWNER="admin" DESCRIPTION="Test folder">\n'
+        f"{folder_content}\n"
+        "    </FOLDER>\n"
+        "  </REPOSITORY>\n"
+        "</POWERMART>\n"
+    )
 
 
 def _source_xml(name: str = "SRC_TABLE", dbtype: str = "ORACLE") -> str:
