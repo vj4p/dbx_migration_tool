@@ -1,0 +1,219 @@
+{
+  "_comment": "Databricks Jobs API v2.1 template for a 3-task Bronze→Silver→Gold workflow.",
+  "_version": "2.1",
+  "_generated_by": "dbx_migration_tool",
+  "_doc": "Replace all <PLACEHOLDER> values before submission. Submit via: POST /api/2.1/jobs/create",
+
+  "name": "job_<SUBJECT>_<FREQUENCY>",
+  "description": "ETL pipeline for <SUBJECT>: Bronze ingest → Silver transform → Gold merge. Migrated from Informatica mapping <MAPPING_NAME>.",
+
+  "tags": {
+    "project":      "dbx_migration_tool",
+    "subject":      "<SUBJECT>",
+    "environment":  "<ENVIRONMENT>",
+    "team":         "data-engineering",
+    "mapping_name": "<MAPPING_NAME>"
+  },
+
+  "schedule": {
+    "quartz_cron_expression": "0 0 2 * * ?",
+    "timezone_id":            "America/New_York",
+    "pause_status":           "PAUSED"
+  },
+
+  "max_concurrent_runs": 1,
+
+  "job_clusters": [
+    {
+      "job_cluster_key": "etl_cluster_<SUBJECT>",
+      "new_cluster": {
+        "spark_version":  "14.3.x-scala2.12",
+        "node_type_id":   "Standard_DS3_v2",
+        "num_workers":    4,
+        "spark_conf": {
+          "spark.databricks.delta.preview.enabled":          "true",
+          "spark.databricks.delta.schema.autoMerge.enabled": "true",
+          "spark.sql.catalog.spark_catalog":                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+          "spark.databricks.unityCatalog.enabled":           "true",
+          "spark.sql.adaptive.enabled":                      "true",
+          "spark.sql.adaptive.coalescePartitions.enabled":   "true"
+        },
+        "spark_env_vars": {
+          "CATALOG":        "cder_prod",
+          "BRONZE_SCHEMA":  "bronze",
+          "SILVER_SCHEMA":  "silver",
+          "GOLD_SCHEMA":    "gold",
+          "SECRET_SCOPE":   "cder-secrets"
+        },
+        "custom_tags": {
+          "project":     "dbx_migration_tool",
+          "subject":     "<SUBJECT>",
+          "environment": "<ENVIRONMENT>"
+        },
+        "autoscale": null,
+        "driver_node_type_id": "Standard_DS3_v2"
+      }
+    }
+  ],
+
+  "tasks": [
+    {
+      "task_key":          "task_<MAPPING_NAME>_bronze",
+      "description":       "Bronze: Oracle JDBC ingest → cder_prod.bronze.<SUBJECT>_raw",
+      "job_cluster_key":   "etl_cluster_<SUBJECT>",
+      "depends_on":        [],
+
+      "notebook_task": {
+        "notebook_path": "/Workspace/Repos/<ENVIRONMENT>/dbx_migration_tool/notebooks/bronze/nb_bronze_<SUBJECT>_ingest",
+        "base_parameters": {
+          "p_load_date":       "{{job.start_time.iso_date}}",
+          "p_mapping_name":    "<MAPPING_NAME>",
+          "p_catalog":         "cder_prod",
+          "p_schema":          "bronze",
+          "p_source_table":    "<ORACLE_OWNER>.<ORACLE_TABLE>",
+          "p_subject":         "<SUBJECT>",
+          "p_incremental":     "false",
+          "p_watermark_col":   "",
+          "p_last_watermark":  ""
+        }
+      },
+
+      "timeout_seconds":              3600,
+      "retry_on_timeout":             false,
+      "max_retries":                  2,
+      "min_retry_interval_millis":    60000,
+      "run_if":                       "ALL_SUCCESS",
+
+      "email_notifications": {
+        "on_failure": ["data-engineering@agency.gov"],
+        "on_success": []
+      },
+
+      "libraries": [
+        {
+          "whl": "/Workspace/Repos/<ENVIRONMENT>/dbx_migration_tool/dist/dbx_migration_tool-*.whl"
+        }
+      ]
+    },
+
+    {
+      "task_key":        "task_<MAPPING_NAME>_silver",
+      "description":     "Silver: cleanse + transform + SCD2 → cder_prod.silver.<SUBJECT>",
+      "job_cluster_key": "etl_cluster_<SUBJECT>",
+      "depends_on": [
+        { "task_key": "task_<MAPPING_NAME>_bronze" }
+      ],
+
+      "notebook_task": {
+        "notebook_path": "/Workspace/Repos/<ENVIRONMENT>/dbx_migration_tool/notebooks/silver/nb_silver_<SUBJECT>_transform",
+        "base_parameters": {
+          "p_load_date":       "{{job.start_time.iso_date}}",
+          "p_mapping_name":    "<MAPPING_NAME>",
+          "p_catalog":         "cder_prod",
+          "p_bronze_schema":   "bronze",
+          "p_silver_schema":   "silver",
+          "p_subject":         "<SUBJECT>",
+          "p_scd2_enabled":    "false",
+          "p_pk_cols":         "<PK_COLS>",
+          "p_business_cols":   "<BUSINESS_COLS>"
+        }
+      },
+
+      "timeout_seconds":              3600,
+      "retry_on_timeout":             false,
+      "max_retries":                  2,
+      "min_retry_interval_millis":    60000,
+      "run_if":                       "ALL_SUCCESS",
+
+      "email_notifications": {
+        "on_failure": ["data-engineering@agency.gov"],
+        "on_success": []
+      },
+
+      "libraries": [
+        {
+          "whl": "/Workspace/Repos/<ENVIRONMENT>/dbx_migration_tool/dist/dbx_migration_tool-*.whl"
+        }
+      ]
+    },
+
+    {
+      "task_key":        "task_<MAPPING_NAME>_gold",
+      "description":     "Gold: Delta MERGE upsert + OPTIMIZE ZORDER → cder_prod.gold.<SUBJECT>",
+      "job_cluster_key": "etl_cluster_<SUBJECT>",
+      "depends_on": [
+        { "task_key": "task_<MAPPING_NAME>_silver" }
+      ],
+
+      "notebook_task": {
+        "notebook_path": "/Workspace/Repos/<ENVIRONMENT>/dbx_migration_tool/notebooks/gold/nb_gold_<SUBJECT>_merge",
+        "base_parameters": {
+          "p_load_date":              "{{job.start_time.iso_date}}",
+          "p_mapping_name":           "<MAPPING_NAME>",
+          "p_catalog":                "cder_prod",
+          "p_silver_schema":          "silver",
+          "p_gold_schema":            "gold",
+          "p_subject":                "<SUBJECT>",
+          "p_pk_cols":                "<PK_COLS>",
+          "p_zorder_cols":            "<PK_COLS>",
+          "p_run_optimize":           "true",
+          "p_delete_indicator_col":   "",
+          "p_delete_indicator_val":   "D"
+        }
+      },
+
+      "timeout_seconds":              7200,
+      "retry_on_timeout":             false,
+      "max_retries":                  1,
+      "min_retry_interval_millis":    120000,
+      "run_if":                       "ALL_SUCCESS",
+
+      "email_notifications": {
+        "on_failure": ["data-engineering@agency.gov"],
+        "on_success": []
+      },
+
+      "libraries": [
+        {
+          "whl": "/Workspace/Repos/<ENVIRONMENT>/dbx_migration_tool/dist/dbx_migration_tool-*.whl"
+        }
+      ]
+    }
+  ],
+
+  "email_notifications": {
+    "on_start":   [],
+    "on_success": [],
+    "on_failure": ["data-engineering@agency.gov"],
+    "no_alert_for_skipped_runs": true
+  },
+
+  "notification_settings": {
+    "no_alert_for_skipped_runs":   true,
+    "no_alert_for_canceled_runs":  false
+  },
+
+  "webhook_notifications": {},
+
+  "parameters": [
+    {
+      "name":    "p_load_date",
+      "default": "{{job.start_time.iso_date}}"
+    }
+  ],
+
+  "run_as": {
+    "service_principal_name": "<SERVICE_PRINCIPAL_APP_ID>"
+  },
+
+  "access_control_list": [
+    {
+      "group_name":        "data-engineering",
+      "permission_level":  "CAN_MANAGE_RUN"
+    },
+    {
+      "group_name":        "data-viewers",
+      "permission_level":  "CAN_VIEW"
+    }
+  ]
+}
